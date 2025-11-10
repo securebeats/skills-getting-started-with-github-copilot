@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const activities = await response.json();
 
       activitiesList.innerHTML = "";
+      // reset activity select options
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       for (const [name, activity] of Object.entries(activities)) {
         // Create activity card
@@ -18,7 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
         card.className = "activity-card";
 
         const participantsList = activity.participants
-          .map((participant) => `<li>${participant}</li>`)
+          .map((participant) => `
+            <li class="participant-item">
+              <span class="participant-email">${participant}</span>
+              <button class="participant-delete" data-activity="${encodeURIComponent(
+                name
+              )}" data-email="${encodeURIComponent(participant)}" aria-label="Remove participant">✖</button>
+            </li>`)
           .join("");
 
         card.innerHTML = `
@@ -77,6 +85,40 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       messageDiv.className = "message error";
       messageDiv.textContent = `❌ Error: ${error.message}`;
+      messageDiv.classList.remove("hidden");
+    }
+  });
+
+  // Delegate click handler for participant delete buttons
+  activitiesList.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!target.classList.contains("participant-delete")) return;
+
+    const activityName = decodeURIComponent(target.dataset.activity);
+    const email = decodeURIComponent(target.dataset.email);
+
+    if (!confirm(`Remove ${email} from ${activityName}?`)) return;
+
+    try {
+      const res = await fetch(
+        `/activities/${encodeURIComponent(activityName)}/participants?email=${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      );
+
+      if (res.ok) {
+        messageDiv.className = "message success";
+        messageDiv.textContent = `✅ Removed ${email} from ${activityName}`;
+        messageDiv.classList.remove("hidden");
+        loadActivities();
+      } else {
+        const err = await res.json();
+        messageDiv.className = "message error";
+        messageDiv.textContent = `❌ Error: ${err.detail}`;
+        messageDiv.classList.remove("hidden");
+      }
+    } catch (err) {
+      messageDiv.className = "message error";
+      messageDiv.textContent = `❌ Error: ${err.message}`;
       messageDiv.classList.remove("hidden");
     }
   });
