@@ -4,46 +4,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
-  // Fetch and display activities
-  async function loadActivities() {
+  // Function to fetch activities from API
+  async function fetchActivities() {
     try {
       const response = await fetch("/activities");
       const activities = await response.json();
 
+      // Clear loading message
       activitiesList.innerHTML = "";
 
-      for (const [name, activity] of Object.entries(activities)) {
-        // Create activity card
-        const card = document.createElement("div");
-        card.className = "activity-card";
+      // Populate activities list
+      Object.entries(activities).forEach(([name, details]) => {
+        const activityCard = document.createElement("div");
+        activityCard.className = "activity-card";
 
-        const participantsList = activity.participants
-          .map((participant) => `<li>${participant}</li>`)
-          .join("");
+        const spotsLeft = details.max_participants - details.participants.length;
 
-        card.innerHTML = `
+        activityCard.innerHTML = `
           <h4>${name}</h4>
-          <p><strong>Description:</strong> ${activity.description}</p>
-          <p><strong>Schedule:</strong> ${activity.schedule}</p>
-          <p><strong>Capacity:</strong> ${activity.participants.length}/${activity.max_participants}</p>
-          <div class="participants-section">
-            <h5>Registered Participants:</h5>
-            <ul class="participants-list">
-              ${participantsList}
-            </ul>
-          </div>
+          <p>${details.description}</p>
+          <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
         `;
 
-        activitiesList.appendChild(card);
+        activitiesList.appendChild(activityCard);
 
-        // Add activity to dropdown
+        // Add option to select dropdown
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
-      }
+      });
     } catch (error) {
-      console.error("Error loading activities:", error);
+      activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
+      console.error("Error fetching activities:", error);
     }
   }
 
@@ -62,25 +56,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       );
 
+      const result = await response.json();
+
       if (response.ok) {
-        messageDiv.className = "message success";
-        messageDiv.textContent = `✅ Successfully signed up for ${activity}!`;
-        messageDiv.classList.remove("hidden");
+        messageDiv.textContent = result.message;
+        messageDiv.className = "success";
         signupForm.reset();
-        loadActivities();
       } else {
-        const error = await response.json();
-        messageDiv.className = "message error";
-        messageDiv.textContent = `❌ Error: ${error.detail}`;
-        messageDiv.classList.remove("hidden");
+        messageDiv.textContent = result.detail || "An error occurred";
+        messageDiv.className = "error";
       }
-    } catch (error) {
-      messageDiv.className = "message error";
-      messageDiv.textContent = `❌ Error: ${error.message}`;
+
       messageDiv.classList.remove("hidden");
+
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
+    } catch (error) {
+      messageDiv.textContent = "Failed to sign up. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error signing up:", error);
     }
   });
 
-  // Load activities on page load
-  loadActivities();
+  // Initialize app
+  fetchActivities();
 });
